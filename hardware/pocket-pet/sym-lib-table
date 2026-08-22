@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "pocket-pet") (type "KiCad") (uri "${KIPRJMOD}/pocket-pet.kicad_sym") (options "") (descr ""))
+)
