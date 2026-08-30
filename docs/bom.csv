@@ -1,0 +1,21 @@
+Reference,Qty,Value,LCSC,DNP,Exclude from BOM,Exclude from Board,Exclude from Simulation,Exclude from Position Files,Footprint,Datasheet
+"C1,C2,C10",3,4.7uF,C1779,,,,,${EXCLUDE_FROM_POS_FILES},Capacitor_SMD:C_0805_2012Metric_Pad1.18x1.45mm_HandSolder,
+C3,1,1uF,C28323,,,,,${EXCLUDE_FROM_POS_FILES},Capacitor_SMD:C_0805_2012Metric_Pad1.18x1.45mm_HandSolder,
+C4,1,2.2uF,C377773,,,,,${EXCLUDE_FROM_POS_FILES},Capacitor_SMD:C_0805_2012Metric_Pad1.18x1.45mm_HandSolder,
+"C5,C6,C7,C8,C9,C11",6,100nF,C49678,,,,,${EXCLUDE_FROM_POS_FILES},Capacitor_SMD:C_0805_2012Metric_Pad1.18x1.45mm_HandSolder,
+J1,1,USB_C_Receptacle_USB2.0_16P,C165948,,,,,${EXCLUDE_FROM_POS_FILES},Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12,https://www.usb.org/sites/default/files/documents/usb_type-c.zip
+J2,1,Conn_01x02,C157932,,,,,${EXCLUDE_FROM_POS_FILES},Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal,
+J3,1,Conn_01x06,,,,,,${EXCLUDE_FROM_POS_FILES},Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical,
+J4,1,Conn_01x07,,,,,,${EXCLUDE_FROM_POS_FILES},Connector_PinHeader_2.54mm:PinHeader_1x07_P2.54mm_Vertical,
+J6,1,Conn_01x11,,,,,,${EXCLUDE_FROM_POS_FILES},Connector_PinHeader_2.54mm:PinHeader_1x11_P2.54mm_Vertical,
+"R1,R2,R3",3,5.1k,C27834,,,,,${EXCLUDE_FROM_POS_FILES},Resistor_SMD:R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,
+R4,1,10k,C2907219,,,,,${EXCLUDE_FROM_POS_FILES},Resistor_SMD:R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,
+"R5,R6",2,0R,C17477,,,,,${EXCLUDE_FROM_POS_FILES},Resistor_SMD:R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,
+"R7,R8",2,4.7k,C2907264,DNP,,,,${EXCLUDE_FROM_POS_FILES},Resistor_SMD:R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,
+SW1,1,SW_SPDT,,,,,,${EXCLUDE_FROM_POS_FILES},pocket-pet:SW_Slide_SS12D00G3_P2.5mm,
+"SW2,SW3",2,SW_Push,,,,,,${EXCLUDE_FROM_POS_FILES},Button_Switch_THT:SW_PUSH_6mm,
+TP1,1,TestPoint,,,,,,${EXCLUDE_FROM_POS_FILES},TestPoint:TestPoint_Pad_D1.5mm,
+TP2,1,TestPoint,,,,,,${EXCLUDE_FROM_POS_FILES},TestPoint:TestPoint_THTPad_D2.0mm_Drill1.0mm,
+U1,1,MCP73831-2-OT,C424093,,,,,${EXCLUDE_FROM_POS_FILES},Package_TO_SOT_SMD:SOT-23-5,http://ww1.microchip.com/downloads/en/DeviceDoc/20001984g.pdf
+U2,1,MCP1700x-330xxTT,C39051,,,,,${EXCLUDE_FROM_POS_FILES},Package_TO_SOT_SMD:SOT-23,http://ww1.microchip.com/downloads/en/DeviceDoc/20001826D.pdf
+U3,1,STM32L433CCTx,C110061,,,,,${EXCLUDE_FROM_POS_FILES},Package_QFP:LQFP-48_7x7mm_P0.5mm,https://www.st.com/resource/en/datasheet/stm32l433cc.pdf
