@@ -6,3 +6,4 @@ Release/
 *.map
 *.list
 .settings/
+.metadata/
