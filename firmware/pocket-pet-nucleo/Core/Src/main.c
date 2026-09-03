@@ -18,11 +18,12 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "spi.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "ssd1306.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -86,8 +87,16 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
+  ssd1306_init();
 
+  ssd1306_clear();
+  ssd1306_draw_string(0, 0, "POCKET PET", SSD1306_PIXEL_ON);
+  ssd1306_draw_string(0, 10, "v1.0", SSD1306_PIXEL_ON);
+  ssd1306_draw_rect(0, 24, 128, 20, SSD1306_PIXEL_ON);
+  ssd1306_draw_line(0, 24, 127, 43, SSD1306_PIXEL_ON);
+  ssd1306_update_screen();
   /* USER CODE END 2 */
 
   /* Infinite loop */
