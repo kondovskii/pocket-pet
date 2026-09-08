@@ -3,8 +3,8 @@
 Battery-powered handheld virtual pet on a custom 2-layer PCB. STM32L433,
 FreeRTOS, hand-written SSD1306 driver, wake-on-motion.
 
-**Status:** boards at fab (`v1.0-boards-ordered`). Firmware toolchain verified
-on a NUCLEO-L432KC. Driver work in progress.
+**Status:** boards at fab (`v1.0-boards-ordered`). SSD1306 driver written and
+validated on hardware. FreeRTOS layer next.
 
 ## Why this project
 
@@ -56,6 +56,30 @@ saving a few millimetres.
 
 **SWD broken out to a 6-pin header** with SWDIO, SWCLK, SWO, NRST, 3V3 and GND,
 in ST-Link pin order.
+
+## Display driver
+
+Written from the SSD1306 datasheet rather than pulled from a library: SPI
+transport with manual DC and CS control, the full initialisation sequence, a
+1024-byte framebuffer, Bresenham line drawing, and a 5x7 column-major font.
+
+**Draw to RAM, flush once.** Every primitive writes to the framebuffer and
+nothing reaches the panel until `ssd1306_update_screen()`. Frames appear whole
+rather than building up visibly, and the flush is a single 1024-byte SPI burst
+instead of hundreds of small transfers.
+
+**The font is column-major** because that matches the controller's own vertical
+byte layout, so rendering a glyph is a single bit test per pixel with no
+transposition.
+
+**Clipping lives in one place.** Only `ssd1306_draw_pixel()` bounds-checks;
+lines, rectangles and text all inherit it. One guard to get right instead of
+six, and no way for them to disagree.
+
+**Validated on a NUCLEO-L432KC with a 7-pin SPI module before the custom boards
+arrived**, so that display bring-up and board bring-up could be debugged
+independently. A blank screen on the custom board now means a hardware fault,
+not an unproven driver.
 
 ## Known issues (v1.0)
 
