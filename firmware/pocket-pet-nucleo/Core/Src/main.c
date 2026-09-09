@@ -90,12 +90,9 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_SPI1_Init();
-
-
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
-
 
   /* Init scheduler */
   osKernelInitialize();  /* Call init function for freertos objects (in cmsis_os2.c) */
@@ -113,11 +110,9 @@ int main(void)
 
     /* USER CODE END WHILE */
 
-	    /* USER CODE BEGIN 3 */
+    /* USER CODE BEGIN 3 */
 	  }
-	  /* USER CODE END 3 */
-
-
+  /* USER CODE END 3 */
 }
 
 /**
