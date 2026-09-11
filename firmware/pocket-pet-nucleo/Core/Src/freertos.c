@@ -29,6 +29,7 @@
 #include "pet.h"
 #include <stdio.h>
 #include "i2c.h"
+#include "lis3dh.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -147,39 +148,35 @@ void StartDefaultTask(void *argument)
 	  char line[24];
 
 	  ssd1306_init();
-	  /* One-shot I2C scan. Displays every address that ACKs.
-	   *
-	   * This is the real test of the custom board's J6 design: CS and SA0 are
-	   * no-connects there, so if the module answers with those pins floating,
-	   * it straps them on-board and the design is sound. Silence means CS is
-	   * floating into an undefined SPI/I2C state and the board needs those
-	   * pins driven. */
 	  {
-	    char scanline[24];
-	    uint8_t found = 0;
-	    uint8_t y = 0;
+	    char l[24];
 
 	    ssd1306_clear();
-	    ssd1306_draw_string(0, 0, "I2C SCAN", SSD1306_PIXEL_ON);
+	    if (lis3dh_init()) {
+	      ssd1306_draw_string(0, 0, "LIS3DH OK", SSD1306_PIXEL_ON);
+	    } else {
+	      ssd1306_draw_string(0, 0, "LIS3DH FAIL", SSD1306_PIXEL_ON);
+	    }
 	    ssd1306_update_screen();
-	    y = 12;
+	    osDelay(1500);
 
-	    for (uint8_t addr = 0x08; addr < 0x78; addr++) {
-	      /* HAL takes the 8-bit shifted address, hence addr << 1. */
-	      if (HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(addr << 1), 2, 10) == HAL_OK) {
-	        snprintf(scanline, sizeof(scanline), "FOUND 0x%02X", addr);
-	        ssd1306_draw_string(0, y, scanline, SSD1306_PIXEL_ON);
-	        y = (uint8_t)(y + 10);
-	        found++;
+	    /* Live axis readout for 15 seconds, so the wiring can be sanity-checked
+	     * by tilting the board before any of this is wired into the game. */
+	    for (int i = 0; i < 150; i++) {
+	      lis3dh_accel_t a;
+
+	      if (lis3dh_read_accel(&a)) {
+	        ssd1306_clear();
+	        snprintf(l, sizeof(l), "X %6d", a.x);
+	        ssd1306_draw_string(0, 0, l, SSD1306_PIXEL_ON);
+	        snprintf(l, sizeof(l), "Y %6d", a.y);
+	        ssd1306_draw_string(0, 16, l, SSD1306_PIXEL_ON);
+	        snprintf(l, sizeof(l), "Z %6d", a.z);
+	        ssd1306_draw_string(0, 32, l, SSD1306_PIXEL_ON);
+	        ssd1306_update_screen();
 	      }
+	      osDelay(100);
 	    }
-
-	    if (found == 0) {
-	      ssd1306_draw_string(0, 12, "NOTHING FOUND", SSD1306_PIXEL_ON);
-	    }
-
-	    ssd1306_update_screen();
-	    osDelay(5000);
 	  }
 	  ssd1306_clear();
 	  ssd1306_draw_string(0, 0, "POCKET PET", SSD1306_PIXEL_ON);
