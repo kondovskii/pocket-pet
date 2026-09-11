@@ -3,8 +3,9 @@
 Battery-powered handheld virtual pet on a custom 2-layer PCB. STM32L433,
 FreeRTOS, hand-written SSD1306 driver, wake-on-motion.
 
-**Status:** boards at fab (`v1.0-boards-ordered`). SSD1306 driver written and
-validated on hardware. FreeRTOS layer next.
+**Status:** boards in hand, awaiting assembly. Display and accelerometer
+drivers written and validated on a NUCLEO-L432KC. Three-task FreeRTOS
+application running. Board bring-up next.
 
 ## Why this project
 
@@ -47,7 +48,8 @@ peripheral's current draw in isolation, or to remove it from the picture while
 debugging.
 
 **I2C pull-ups fitted but not populated.** R7 and R8 are marked DNP because the
-LIS3DH breakout carries its own. The footprints exist so they can be added if a
+LIS3DH breakout carries its own — confirmed by bench test, with CS and SA0
+floating as J6 wires them. The footprints exist so they can be added if a
 different module is used.
 
 **Peripherals on headers, not soldered down.** The display and accelerometer are
@@ -80,6 +82,55 @@ six, and no way for them to disagree.
 arrived**, so that display bring-up and board bring-up could be debugged
 independently. A blank screen on the custom board now means a hardware fault,
 not an unproven driver.
+
+## Motion driver
+
+I2C driver for the LIS3DH, written from the datasheet: register map, burst
+reads, and a WHO_AM_I identity check that fails loudly rather than returning
+plausible garbage.
+
+**Auto-increment must be requested explicitly.** Bit 7 of the register address
+tells the part to advance its internal pointer across a burst. Without it,
+reading six bytes from `OUT_X_L` returns the same register six times — all
+three axes identical, which looks exactly like a dead sensor rather than a
+protocol mistake.
+
+**Block Data Update is enabled** so the part cannot refresh an output register
+pair between the read of the low byte and the high byte. Without it, occasional
+samples are the low half of one reading stitched to the high half of the next.
+
+**Signed arithmetic shift for the 12-bit values.** Output is left-justified
+16-bit; high-resolution mode makes only the top 12 bits meaningful. Shifting a
+signed type sign-extends and preserves negative readings, where the same shift
+on an unsigned type would turn -1 into 4095.
+
+**The I2C address was found by scanning, not assumed.** The module strapps SA0
+high on-board, giving 0x19 rather than the 0x18 in most examples. The scan also
+answered an open hardware question: with CS and SA0 left floating — exactly how
+J6 wires them on the custom board — the part still enumerates, which confirms
+the module strapps CS high internally and the connector design is correct.
+
+## RTOS architecture
+
+Three tasks, no shared state.
+
+    inputTask    polls and debounces the two buttons, publishes events
+    petTask      owns the pet state, applies events, ticks it forward
+    displayTask  blocks on a state queue, renders whatever it receives
+
+Tasks communicate only through queues, and the pet state is passed **by value**
+rather than by pointer — each task works on its own copy, so there is no shared
+memory, no mutex, and no race to get wrong.
+
+The two queues have deliberately different depths. The state queue is depth 1
+because the display only ever cares about the newest state; a deeper one would
+just mean rendering stale frames. The event queue is depth 4 because a dropped
+button press is a bug, where a dropped frame is not.
+
+**Input is edge-triggered, not level.** A press registers on the
+released-to-pressed transition, so holding a button feeds the pet once rather
+than continuously.
+
 
 ## Known issues (v1.0)
 
