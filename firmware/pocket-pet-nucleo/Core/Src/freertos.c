@@ -28,6 +28,7 @@
 #include "ssd1306.h"
 #include "pet.h"
 #include <stdio.h>
+#include "i2c.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -146,7 +147,40 @@ void StartDefaultTask(void *argument)
 	  char line[24];
 
 	  ssd1306_init();
+	  /* One-shot I2C scan. Displays every address that ACKs.
+	   *
+	   * This is the real test of the custom board's J6 design: CS and SA0 are
+	   * no-connects there, so if the module answers with those pins floating,
+	   * it straps them on-board and the design is sound. Silence means CS is
+	   * floating into an undefined SPI/I2C state and the board needs those
+	   * pins driven. */
+	  {
+	    char scanline[24];
+	    uint8_t found = 0;
+	    uint8_t y = 0;
 
+	    ssd1306_clear();
+	    ssd1306_draw_string(0, 0, "I2C SCAN", SSD1306_PIXEL_ON);
+	    ssd1306_update_screen();
+	    y = 12;
+
+	    for (uint8_t addr = 0x08; addr < 0x78; addr++) {
+	      /* HAL takes the 8-bit shifted address, hence addr << 1. */
+	      if (HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(addr << 1), 2, 10) == HAL_OK) {
+	        snprintf(scanline, sizeof(scanline), "FOUND 0x%02X", addr);
+	        ssd1306_draw_string(0, y, scanline, SSD1306_PIXEL_ON);
+	        y = (uint8_t)(y + 10);
+	        found++;
+	      }
+	    }
+
+	    if (found == 0) {
+	      ssd1306_draw_string(0, 12, "NOTHING FOUND", SSD1306_PIXEL_ON);
+	    }
+
+	    ssd1306_update_screen();
+	    osDelay(5000);
+	  }
 	  ssd1306_clear();
 	  ssd1306_draw_string(0, 0, "POCKET PET", SSD1306_PIXEL_ON);
 	  ssd1306_draw_string(0, 10, "v1.0", SSD1306_PIXEL_ON);
