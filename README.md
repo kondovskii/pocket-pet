@@ -3,9 +3,10 @@
 Battery-powered handheld virtual pet on a custom 2-layer PCB. STM32L433,
 FreeRTOS, hand-written SSD1306 driver, wake-on-motion.
 
-**Status:** boards in hand, awaiting assembly. Display and accelerometer
-drivers written and validated on a NUCLEO-L432KC. Three-task FreeRTOS
-application running. Board bring-up next.
+**Status:** power section assembled and verified on board #2 — USB-C
+negotiation, charger, and 3.3 V rail all confirmed. MCU assembly next.
+Display and accelerometer drivers validated on a NUCLEO-L432KC; three-task
+FreeRTOS application running.
 
 ## Why this project
 
@@ -151,6 +152,11 @@ rather than hidden — these are the v1.1 fix list.
 - **STAT pin unconnected**, so there is no charge indicator LED.
 - Silkscreen needs a cleanup pass: unannotated mounting holes, overlapping value
   text, no pin-1 markers or header labels.
+- **Cold joints on the USB-C VBUS pin killed the first assembly attempt.**
+  VBUS and GND have multiple redundant pins; CC1 and CC2 have exactly one
+  each, so a single bad joint silently kills power negotiation with no other
+  symptom. Worth probing CC-to-GND for 5.1 k before troubleshooting anything
+  else.
 
 ## Repository layout
 
