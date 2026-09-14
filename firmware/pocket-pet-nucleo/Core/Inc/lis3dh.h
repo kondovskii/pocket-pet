@@ -2,14 +2,13 @@
 #define LIS3DH_H
 
 #include <stdint.h>
+#include "pocket_pet_pins.h"
 
 /*
- * LIS3DH 3-axis accelerometer, I2C mode.
- *
- * Address is 0x19 because the module strapps SA0 high on-board. The 7-bit
- * address is shifted left by one for the HAL, which takes 8-bit addresses.
+ * Address comes from the board header: the two targets strap SA0 differently,
+ * and that is a board fact, not a chip fact.
  */
-#define LIS3DH_I2C_ADDR        0x19
+#define LIS3DH_I2C_ADDR        LIS3DH_ADDR_7BIT
 #define LIS3DH_I2C_ADDR_HAL    (LIS3DH_I2C_ADDR << 1)
 
 /* --- Registers (datasheet section 8) ------------------------------------- */

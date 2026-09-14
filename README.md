@@ -3,10 +3,10 @@
 Battery-powered handheld virtual pet on a custom 2-layer PCB. STM32L433,
 FreeRTOS, hand-written SSD1306 driver, wake-on-motion.
 
-**Status:** power section assembled and verified on board #2 — USB-C
-negotiation, charger, and 3.3 V rail all confirmed. MCU assembly next.
-Display and accelerometer drivers validated on a NUCLEO-L432KC; three-task
-FreeRTOS application running.
+**Status:** board #2 fully assembled — power tree verified at 3.36 V, MCU and
+peripherals populated. Awaiting an ST-Link to flash it. Display and
+accelerometer drivers validated on a NUCLEO-L432KC; three-task FreeRTOS
+application running.
 
 ## Why this project
 
@@ -53,9 +53,12 @@ LIS3DH breakout carries its own — confirmed by bench test, with CS and SA0
 floating as J6 wires them. The footprints exist so they can be added if a
 different module is used.
 
-**Peripherals on headers, not soldered down.** The display and accelerometer are
-socketed. On a first custom board, being able to swap a suspect module beats
-saving a few millimetres.
+**Peripherals soldered directly.** The original plan was female headers so
+modules could be swapped. They were dropped because SW1, the power switch, is
+surface-mounted flat to the board and cannot rise with them — sockets would
+have left it recessed roughly 8.5 mm below the display plane and complicated
+the enclosure. The 0 ohm rail jumpers (R5, R6) preserve the debugging benefit:
+either peripheral can be isolated or current-measured by lifting one resistor.
 
 **SWD broken out to a 6-pin header** with SWDIO, SWCLK, SWO, NRST, 3V3 and GND,
 in ST-Link pin order.
@@ -157,6 +160,11 @@ rather than hidden — these are the v1.1 fix list.
   each, so a single bad joint silently kills power negotiation with no other
   symptom. Worth probing CC-to-GND for 5.1 k before troubleshooting anything
   else.
+- **The Nucleo-32's ST-Link cannot program an external target.** Unlike
+  Nucleo-64 and -144, it has no break-out SWD connector — the debugger is
+  hardwired to the on-board MCU, and CN2 is reserved for reflashing the
+  ST-Link's own processor. A standalone ST-Link V2 is required. Worth knowing
+  before planning a bring-up around a Nucleo.
 
 ## Repository layout
 
