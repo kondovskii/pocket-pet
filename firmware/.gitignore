@@ -7,3 +7,9 @@ Release/
 *.list
 .settings/
 .metadata/
+pocket-pet-board/Drivers/CMSIS/NN/
+pocket-pet-board/Drivers/CMSIS/DSP/
+pocket-pet-board/Drivers/CMSIS/RTOS/
+pocket-pet-board/Drivers/CMSIS/RTOS2/
+pocket-pet-board/Drivers/CMSIS/Core/Template/
+pocket-pet-board/EWARM/
