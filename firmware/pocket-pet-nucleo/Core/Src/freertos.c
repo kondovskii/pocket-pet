@@ -30,6 +30,8 @@
 #include <stdio.h>
 #include "i2c.h"
 #include "lis3dh.h"
+#include "pocket_pet_pins.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -208,7 +210,9 @@ void StartDefaultTask(void *argument)
 	      ssd1306_update_screen();
 	    }
 
-	    HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+#ifdef BOARD_NUCLEO
+    HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+#endif
 	  }
   /* USER CODE END StartDefaultTask */
 }
@@ -238,12 +242,6 @@ void StartPetTask(void *argument)
       pet_apply_event(&pet, ev);
     }
 
-    pet_tick(&pet);
-    osMessageQueuePut(petStateQueueHandle, &pet, 0, 0);
-
-    osDelay(1000);
-  }
-  {
     pet_tick(&pet);
 
     /* Overwrite semantics: if the display has not consumed the previous
