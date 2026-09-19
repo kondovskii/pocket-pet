@@ -102,3 +102,47 @@ uint8_t lis3dh_read_accel(lis3dh_accel_t *accel)
 
     return 1;
 }
+
+/*
+ * Detect a shake.
+ *
+ * At rest the magnitude of the acceleration vector is roughly 1 g (~1000
+ * counts at +/-2 g in high-resolution mode), whichever way the board is
+ * oriented — gravity is always there. A shake pushes it well past that.
+ *
+ * Squared magnitude is compared rather than taking a square root: the
+ * comparison is equivalent, and it avoids pulling floating point and sqrt
+ * into a driver that otherwise needs neither.
+ *
+ * A cooldown suppresses repeat triggers, since one physical shake is several
+ * acceleration peaks over a second or so and would otherwise register many
+ * times.
+ */
+#define SHAKE_THRESHOLD_SQ   4000000L  /* ~2 g */
+#define SHAKE_COOLDOWN_CALLS 20        /* at 100 ms polling, ~2 s */
+
+uint8_t lis3dh_check_shake(void)
+{
+    static uint8_t cooldown = 0;
+    lis3dh_accel_t a;
+
+    if (cooldown > 0) {
+        cooldown--;
+        return 0;
+    }
+
+    if (!lis3dh_read_accel(&a)) {
+        return 0;
+    }
+
+    int32_t mag_sq = ((int32_t)a.x * a.x)
+                   + ((int32_t)a.y * a.y)
+                   + ((int32_t)a.z * a.z);
+
+    if (mag_sq > SHAKE_THRESHOLD_SQ) {
+        cooldown = SHAKE_COOLDOWN_CALLS;
+        return 1;
+    }
+
+    return 0;
+}

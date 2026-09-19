@@ -30,6 +30,7 @@
 #include "pet.h"
 #include "pocket_pet_pins.h"
 #include <stdio.h>
+#include "pet_sprites.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -53,7 +54,7 @@
 
     const osThreadAttr_t petTask_attributes = {
       .name = "petTask",
-      .stack_size = 128 * 4,
+      .stack_size = 256 * 4,
       .priority = (osPriority_t) osPriorityNormal,
     };
     osThreadId_t petTaskHandle;
@@ -63,7 +64,7 @@
 
     const osThreadAttr_t inputTask_attributes = {
       .name = "inputTask",
-      .stack_size = 128 * 4,
+      .stack_size = 256 * 4,
       .priority = (osPriority_t) osPriorityNormal,
     };
     osThreadId_t inputTaskHandle;
@@ -74,7 +75,7 @@
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .stack_size = 128 * 4,
+  .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 
@@ -187,32 +188,60 @@ void StartDefaultTask(void *argument)
 
 		  for(;;)
 		  {
-		    /* Block until the pet task publishes a new state. osWaitForever means
-		     * this task uses no CPU at all between updates. */
-		    if (osMessageQueueGet(petStateQueueHandle, &pet, NULL, osWaitForever) == osOK)
-		    {
-		      ssd1306_clear();
+			    if (osMessageQueueGet(petStateQueueHandle, &pet, NULL, osWaitForever) == osOK)
+			    {
+			      ssd1306_clear();
 
-		      snprintf(line, sizeof(line), "HUNGER %3u", pet.hunger);
-		      ssd1306_draw_string(0, 0, line, SSD1306_PIXEL_ON);
-		      ssd1306_fill_rect(0, 10, (uint8_t)(pet.hunger * 128 / 100), 6,
-		                        SSD1306_PIXEL_ON);
+			      pet_mood_t mood = pet_get_mood(&pet);
 
-		      snprintf(line, sizeof(line), "MOOD   %3u", pet.mood);
-		      ssd1306_draw_string(0, 22, line, SSD1306_PIXEL_ON);
-		      ssd1306_fill_rect(0, 32, (uint8_t)(pet.mood * 128 / 100), 6,
-		                        SSD1306_PIXEL_ON);
+			      /* Sprite on the left, stats on the right. */
+			      const uint8_t *sprite = (mood == PET_MOOD_HAPPY) ? pet_happy : pet_sad;
+			      ssd1306_draw_bitmap(4, 8, sprite, PET_SPRITE_W, PET_SPRITE_H,
+			                          SSD1306_PIXEL_ON);
 
-		      snprintf(line, sizeof(line), "AGE %lus", pet.age_s);
-		      ssd1306_draw_string(0, 44, line, SSD1306_PIXEL_ON);
+			      /* Three stat bars, labelled and scaled to 60 px. */
+			      snprintf(line, sizeof(line), "HUN");
+			      ssd1306_draw_string(40, 4, line, SSD1306_PIXEL_ON);
+			      ssd1306_draw_rect(62, 3, 62, 9, SSD1306_PIXEL_ON);
+			      ssd1306_fill_rect(63, 4, (uint8_t)(pet.hunger * 60 / 100), 7,
+			                        SSD1306_PIXEL_ON);
 
-		      ssd1306_update_screen();
+			      snprintf(line, sizeof(line), "MOO");
+			      ssd1306_draw_string(40, 18, line, SSD1306_PIXEL_ON);
+			      ssd1306_draw_rect(62, 17, 62, 9, SSD1306_PIXEL_ON);
+			      ssd1306_fill_rect(63, 18, (uint8_t)(pet.mood * 60 / 100), 7,
+			                        SSD1306_PIXEL_ON);
+
+			      snprintf(line, sizeof(line), "NRG");
+			      ssd1306_draw_string(40, 32, line, SSD1306_PIXEL_ON);
+			      ssd1306_draw_rect(62, 31, 62, 9, SSD1306_PIXEL_ON);
+			      ssd1306_fill_rect(63, 32, (uint8_t)(pet.energy * 60 / 100), 7,
+			                        SSD1306_PIXEL_ON);
+
+			      /* Status line: whichever of these is most urgent. */
+			      if (mood == PET_MOOD_DEAD) {
+			        ssd1306_draw_string(4, 50, "RIP", SSD1306_PIXEL_ON);
+			      } else if (mood == PET_MOOD_DISTRESSED) {
+			        snprintf(line, sizeof(line), "HELP! %us",
+			                 (unsigned)((DISTRESS_TICKS - pet.distress_ticks)));
+			        ssd1306_draw_string(4, 50, line, SSD1306_PIXEL_ON);
+			      } else if (mood == PET_MOOD_SLEEPING) {
+			        ssd1306_draw_string(4, 50, "ZZZ", SSD1306_PIXEL_ON);
+			      } else {
+			        snprintf(line, sizeof(line), "%s  %lus",
+			                 (pet.stage == PET_STAGE_ADULT) ? "ADULT" : "BABY",
+			                 pet.age_s);
+			        ssd1306_draw_string(4, 50, line, SSD1306_PIXEL_ON);
+			      }
+
+			      ssd1306_update_screen();
+			    }
+
+			#ifdef BOARD_NUCLEO
+			    HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+			#endif
 		    }
 
-	#ifdef BOARD_NUCLEO
-	    HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
-	#endif
-		  }
 	  /* USER CODE END StartDefaultTask */
 }
 
@@ -266,29 +295,43 @@ void StartDefaultTask(void *argument)
 	 */
 	void StartInputTask(void *argument)
 	{
-	  uint8_t btn_a_prev = 1;   /* 1 = released, matches the pull-up idle state */
-	  uint8_t btn_b_prev = 1;
+		  uint8_t btn_a_prev = 1;
+		  uint8_t btn_b_prev = 1;
+		  uint8_t accel_divider = 0;
 
-	  for(;;)
-	  {
-	    uint8_t btn_a = (HAL_GPIO_ReadPin(BTN_A_GPIO_Port, BTN_A_Pin) == GPIO_PIN_SET) ? 1 : 0;
-	    uint8_t btn_b = (HAL_GPIO_ReadPin(BTN_B_GPIO_Port, BTN_B_Pin) == GPIO_PIN_SET) ? 1 : 0;
+		  for(;;)
+		  {
+		    uint8_t btn_a = (HAL_GPIO_ReadPin(BTN_A_GPIO_Port, BTN_A_Pin) == GPIO_PIN_SET) ? 1 : 0;
+		    uint8_t btn_b = (HAL_GPIO_ReadPin(BTN_B_GPIO_Port, BTN_B_Pin) == GPIO_PIN_SET) ? 1 : 0;
 
-	    if (btn_a == 0 && btn_a_prev == 1) {
-	      pet_event_t ev = PET_EVENT_FEED;
-	      osMessageQueuePut(petEventQueueHandle, &ev, 0, 0);
-	    }
+		    if (btn_a == 0 && btn_a_prev == 1) {
+		      pet_event_t ev = PET_EVENT_FEED;
+		      osMessageQueuePut(petEventQueueHandle, &ev, 0, 0);
+		    }
 
-	    if (btn_b == 0 && btn_b_prev == 1) {
-	      pet_event_t ev = PET_EVENT_PLAY;
-	      osMessageQueuePut(petEventQueueHandle, &ev, 0, 0);
-	    }
+		    if (btn_b == 0 && btn_b_prev == 1) {
+		      pet_event_t ev = PET_EVENT_PLAY;
+		      osMessageQueuePut(petEventQueueHandle, &ev, 0, 0);
+		    }
 
-	    btn_a_prev = btn_a;
-	    btn_b_prev = btn_b;
+		    btn_a_prev = btn_a;
+		    btn_b_prev = btn_b;
 
-	    osDelay(20);
-	  }
+		    /* Buttons need 20 ms sampling to debounce cleanly; the accelerometer
+		     * does not, and polling I2C that often wastes bus time and power. Every
+		     * fifth pass gives 100 ms, which matches the cooldown assumption in
+		     * lis3dh_check_shake(). */
+		    if (++accel_divider >= 5) {
+		      accel_divider = 0;
+
+		      if (lis3dh_check_shake()) {
+		        pet_event_t ev = PET_EVENT_SHAKE;
+		        osMessageQueuePut(petEventQueueHandle, &ev, 0, 0);
+		      }
+		    }
+
+		    osDelay(20);
+		  }
 	}
 
 	/* USER CODE END Application */

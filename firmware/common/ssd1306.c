@@ -354,3 +354,34 @@ void ssd1306_draw_string(uint8_t x, uint8_t y, const char *str,
         str++;
     }
 }
+
+/*
+ * Draw a bitmap at (x, y).
+ *
+ * Data is row-major, one bit per pixel, MSB first, with each row padded out
+ * to a whole byte. This is the layout every bitmap converter produces and
+ * what a hand-drawn sprite looks like written as binary literals, so sprites
+ * stay readable in source.
+ *
+ * Note this is the opposite arrangement to the font, which is column-major to
+ * match the controller. Here readability wins: a sprite is edited by hand far
+ * more often than a font, and draw_pixel absorbs the difference.
+ *
+ * Only set bits are drawn, so sprites composite over whatever is already in
+ * the framebuffer rather than blanking a rectangle behind themselves.
+ */
+void ssd1306_draw_bitmap(uint8_t x, uint8_t y, const uint8_t *bitmap,
+                         uint8_t w, uint8_t h, ssd1306_colour_t colour)
+{
+    uint8_t bytes_per_row = (uint8_t)((w + 7) / 8);
+
+    for (uint8_t row = 0; row < h; row++) {
+        for (uint8_t col = 0; col < w; col++) {
+            uint8_t byte = bitmap[(row * bytes_per_row) + (col / 8)];
+
+            if (byte & (0x80 >> (col % 8))) {
+                ssd1306_draw_pixel((uint8_t)(x + col), (uint8_t)(y + row), colour);
+            }
+        }
+    }
+}

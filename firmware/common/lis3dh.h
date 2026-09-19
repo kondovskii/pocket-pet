@@ -52,4 +52,7 @@ typedef struct {
 uint8_t lis3dh_init(void);
 uint8_t lis3dh_read_accel(lis3dh_accel_t *accel);
 
+/* --- Shake detection ----------------------------------------------------- */
+uint8_t lis3dh_check_shake(void);
+
 #endif /* LIS3DH_H */
