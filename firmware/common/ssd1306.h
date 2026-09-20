@@ -83,4 +83,8 @@ void ssd1306_draw_string(uint8_t x, uint8_t y, const char *str,
 void ssd1306_draw_bitmap(uint8_t x, uint8_t y, const uint8_t *bitmap,
                          uint8_t w, uint8_t h, ssd1306_colour_t colour);
 
+void ssd1306_draw_bitmap_scaled(uint8_t x, uint8_t y, const uint8_t *bitmap,
+                                uint8_t w, uint8_t h, uint8_t scale,
+                                ssd1306_colour_t colour);
+
 #endif /* SSD1306_H */

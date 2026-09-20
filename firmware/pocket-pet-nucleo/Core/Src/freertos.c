@@ -147,101 +147,162 @@ void MX_FREERTOS_Init(void) {
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
-	  pet_state_t pet;
-	  char line[24];
+  pet_state_t pet;
+  char line[24];
+  uint8_t anim_frame = 0;
 
-	  ssd1306_init();
-	  {
-	    char l[24];
+  pet_init(&pet);
+  ssd1306_init();
 
-	    ssd1306_clear();
-	    if (lis3dh_init()) {
-	      ssd1306_draw_string(0, 0, "LIS3DH OK", SSD1306_PIXEL_ON);
-	    } else {
-	      ssd1306_draw_string(0, 0, "LIS3DH FAIL", SSD1306_PIXEL_ON);
-	    }
-	    ssd1306_update_screen();
-	    osDelay(1500);
+  if (!lis3dh_init()) {
+    ssd1306_clear();
+    ssd1306_draw_string(0, 0, "LIS3DH FAIL", SSD1306_PIXEL_ON);
+    ssd1306_update_screen();
+    osDelay(2000);
+  }
 
-	    /* Live axis readout for 15 seconds, so the wiring can be sanity-checked
-	     * by tilting the board before any of this is wired into the game. */
-	    for (int i = 0; i < 150; i++) {
-	      lis3dh_accel_t a;
+  /* Splash: title, credit, and the bunny hopping in from the left.
+   *
+   * The vertical offset is a repeating 4-step pattern rather than a real
+   * arc — at 32px tall on a 1-bit display the difference is invisible, and
+   * a lookup table costs nothing. Runs at the same 8 fps as the main loop
+   * so the motion matches the rest of the UI. */
+  {
+    static const int8_t hop[4] = { 0, -3, -5, -3 };
 
-	      if (lis3dh_read_accel(&a)) {
-	        ssd1306_clear();
-	        snprintf(l, sizeof(l), "X %6d", a.x);
-	        ssd1306_draw_string(0, 0, l, SSD1306_PIXEL_ON);
-	        snprintf(l, sizeof(l), "Y %6d", a.y);
-	        ssd1306_draw_string(0, 16, l, SSD1306_PIXEL_ON);
-	        snprintf(l, sizeof(l), "Z %6d", a.z);
-	        ssd1306_draw_string(0, 32, l, SSD1306_PIXEL_ON);
-	        ssd1306_update_screen();
-	      }
-	      osDelay(100);
-	    }
-	  }
-	  ssd1306_clear();
-	  ssd1306_draw_string(0, 0, "POCKET PET", SSD1306_PIXEL_ON);
-	  ssd1306_draw_string(0, 10, "v1.0", SSD1306_PIXEL_ON);
-	  ssd1306_update_screen();
-	  osDelay(1500);
+    for (uint8_t i = 0; i < 28; i++) {
+      ssd1306_clear();
 
-	  for(;;)
-	  {
-		    if (osMessageQueueGet(petStateQueueHandle, &pet, NULL, osWaitForever) == osOK)
-		    {
-		      ssd1306_clear();
+      ssd1306_draw_string(28, 6,  "POCKET PET", SSD1306_PIXEL_ON);
+      ssd1306_draw_string(16, 18, "by @wiredbysarah", SSD1306_PIXEL_ON);
 
-		      pet_mood_t mood = pet_get_mood(&pet);
+      /* Hops in from off-screen left, stops at x=48 and settles. */
+      int16_t bx = (int16_t)(i * 5) - 32;
+      if (bx > 48) {
+        bx = 48;
+      }
 
-		      /* Sprite on the left, stats on the right. */
-		      const uint8_t *sprite = (mood == PET_MOOD_HAPPY) ? pet_happy : pet_sad;
-		      ssd1306_draw_bitmap(4, 8, sprite, PET_SPRITE_W, PET_SPRITE_H,
-		                          SSD1306_PIXEL_ON);
+      /* Stop bouncing once it has arrived. */
+      int16_t by = 30 + ((bx < 48) ? hop[i % 4] : 0);
 
-		      /* Three stat bars, labelled and scaled to 60 px. */
-		      snprintf(line, sizeof(line), "HUN");
-		      ssd1306_draw_string(40, 4, line, SSD1306_PIXEL_ON);
-		      ssd1306_draw_rect(62, 3, 62, 9, SSD1306_PIXEL_ON);
-		      ssd1306_fill_rect(63, 4, (uint8_t)(pet.hunger * 60 / 100), 7,
-		                        SSD1306_PIXEL_ON);
+      /* Runs while moving, idles once it arrives — a run cycle playing on
+       * the spot reads as a glitch rather than a pause. */
+      const pet_anim_t *splash_anim = (bx < 48) ? &anim_run : &anim_idle;
 
-		      snprintf(line, sizeof(line), "MOO");
-		      ssd1306_draw_string(40, 18, line, SSD1306_PIXEL_ON);
-		      ssd1306_draw_rect(62, 17, 62, 9, SSD1306_PIXEL_ON);
-		      ssd1306_fill_rect(63, 18, (uint8_t)(pet.mood * 60 / 100), 7,
-		                        SSD1306_PIXEL_ON);
+      ssd1306_draw_bitmap((uint8_t)bx, (uint8_t)by,
+                          splash_anim->frames[i % splash_anim->count],
+                          PET_SPRITE_W, PET_SPRITE_H, SSD1306_PIXEL_ON);
 
-		      snprintf(line, sizeof(line), "NRG");
-		      ssd1306_draw_string(40, 32, line, SSD1306_PIXEL_ON);
-		      ssd1306_draw_rect(62, 31, 62, 9, SSD1306_PIXEL_ON);
-		      ssd1306_fill_rect(63, 32, (uint8_t)(pet.energy * 60 / 100), 7,
-		                        SSD1306_PIXEL_ON);
+      ssd1306_update_screen();
+      osDelay(125);
+    }
 
-		      /* Status line: whichever of these is most urgent. */
-		      if (mood == PET_MOOD_DEAD) {
-		        ssd1306_draw_string(4, 50, "RIP", SSD1306_PIXEL_ON);
-		      } else if (mood == PET_MOOD_DISTRESSED) {
-		        snprintf(line, sizeof(line), "HELP! %us",
-		                 (unsigned)((DISTRESS_TICKS - pet.distress_ticks)));
-		        ssd1306_draw_string(4, 50, line, SSD1306_PIXEL_ON);
-		      } else if (mood == PET_MOOD_SLEEPING) {
-		        ssd1306_draw_string(4, 50, "ZZZ", SSD1306_PIXEL_ON);
-		      } else {
-		        snprintf(line, sizeof(line), "%s  %lus",
-		                 (pet.stage == PET_STAGE_ADULT) ? "ADULT" : "BABY",
-		                 pet.age_s);
-		        ssd1306_draw_string(4, 50, line, SSD1306_PIXEL_ON);
-		      }
+    osDelay(600);
+  }
 
-		      ssd1306_update_screen();
-		    }
+  /* Redraw on a fixed 125 ms cadence rather than waiting on the queue, so
+   * animation runs at 8 fps regardless of how often the pet state changes. */
+  for(;;)
+  {
+    /* Timeout 0: take a new state if there is one, carry on if not. */
+    osMessageQueueGet(petStateQueueHandle, &pet, NULL, 0);
 
-		#ifdef BOARD_NUCLEO
-		    HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
-		#endif
-	  }
+    pet_mood_t mood = pet_get_mood(&pet);
+
+    ssd1306_clear();
+
+
+    /* --- Stat bars: labelled, down the left ------------------------------ */
+    ssd1306_draw_string(0, 2, "HUNGER", SSD1306_PIXEL_ON);
+    ssd1306_draw_rect(38, 1, 30, 7, SSD1306_PIXEL_ON);
+    ssd1306_fill_rect(39, 2, (uint8_t)(pet.hunger * 28 / 100), 5, SSD1306_PIXEL_ON);
+
+    ssd1306_draw_string(0, 13, "MOOD", SSD1306_PIXEL_ON);
+    ssd1306_draw_rect(38, 12, 30, 7, SSD1306_PIXEL_ON);
+    ssd1306_fill_rect(39, 13, (uint8_t)(pet.mood * 28 / 100), 5, SSD1306_PIXEL_ON);
+
+    ssd1306_draw_string(0, 24, "ENERGY", SSD1306_PIXEL_ON);
+    ssd1306_draw_rect(38, 23, 30, 7, SSD1306_PIXEL_ON);
+    ssd1306_fill_rect(39, 24, (uint8_t)(pet.energy * 28 / 100), 5, SSD1306_PIXEL_ON);
+
+
+    /* --- The pet, right-hand side ----------------------------------------
+     * Adults render at 2x, so growing up is visible rather than just a label
+     * change. Both sizes sit their feet on the same baseline, so the
+     * creature grows upward in place.
+     *
+     * The y calculation is done signed and clamped: at 2x the sprite is 64px
+     * tall and would underflow a uint8_t subtraction, wrapping to a large
+     * value and clipping the top of the sprite. */
+    /* A recent event overrides the mood animation, so a button press is
+     * visibly acknowledged and the reaction animations get used. Death and
+     * distress still win: those are things the player needs to see. */
+    const pet_anim_t *anim;
+
+    if (mood == PET_MOOD_DEAD) {
+      anim = &anim_dead;
+    } else if (mood == PET_MOOD_DISTRESSED) {
+      anim = &anim_hurt;
+    } else if (pet.reaction_ticks > 0) {
+      switch (pet.last_event) {
+        case PET_EVENT_FEED:  anim = &anim_attack; break;
+        case PET_EVENT_PLAY:  anim = &anim_run;    break;
+        case PET_EVENT_SHAKE: anim = &anim_run;    break;
+        default:              anim = &anim_idle;   break;
+      }
+    } else {
+      switch (mood) {
+        case PET_MOOD_HAPPY:    anim = &anim_idle;    break;
+        case PET_MOOD_NEUTRAL:  anim = &anim_sitting; break;
+        case PET_MOOD_SAD:      anim = &anim_liedown; break;
+        case PET_MOOD_SLEEPING: anim = &anim_sleep;   break;
+        default:                anim = &anim_idle;    break;
+      }
+    }
+
+    uint8_t scale = (pet.stage == PET_STAGE_ADULT) ? 2 : 1;
+    int16_t sprite_h = (int16_t)(PET_SPRITE_H * scale);
+    int16_t sy = 54 - sprite_h;
+    if (sy < 0) {
+      sy = 0;
+    }
+
+    /* Both sizes share a horizontal centre at x=95, so the creature grows in
+     * place rather than shifting sideways when it reaches adulthood. */
+    uint8_t sprite_w = (uint8_t)(PET_SPRITE_W * scale);
+    uint8_t sx = (uint8_t)(105 - sprite_w / 2);
+
+
+    ssd1306_draw_bitmap_scaled(sx, (uint8_t)sy,
+                               anim->frames[anim_frame % anim->count],
+                               PET_SPRITE_W, PET_SPRITE_H, scale,
+                               SSD1306_PIXEL_ON);
+
+    /* --- Status line, bottom --------------------------------------------- */
+    if (mood == PET_MOOD_DEAD) {
+      ssd1306_draw_string(4, 56, "RIP", SSD1306_PIXEL_ON);
+    } else if (mood == PET_MOOD_DISTRESSED) {
+      snprintf(line, sizeof(line), "HELP! %us",
+               (unsigned)(DISTRESS_TICKS - pet.distress_ticks));
+      ssd1306_draw_string(4, 56, line, SSD1306_PIXEL_ON);
+    } else if (mood == PET_MOOD_SLEEPING) {
+      ssd1306_draw_string(4, 56, "ZZZ", SSD1306_PIXEL_ON);
+    } else {
+      snprintf(line, sizeof(line), "%s %lus",
+               (pet.stage == PET_STAGE_ADULT) ? "ADULT" : "BABY",
+               pet.age_s);
+      ssd1306_draw_string(0, 56, line, SSD1306_PIXEL_ON);
+    }
+
+    anim_frame++;
+    ssd1306_update_screen();
+
+#ifdef BOARD_NUCLEO
+    HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+#endif
+
+    osDelay(125);
+  }
   /* USER CODE END StartDefaultTask */
 }
 
@@ -298,7 +359,12 @@ void StartInputTask(void *argument)
 {
 	  uint8_t btn_a_prev = 1;
 	  uint8_t btn_b_prev = 1;
+	  uint16_t btn_b_held = 0;
+	  uint8_t  btn_b_longpress_fired = 0;
 	  uint8_t accel_divider = 0;
+
+	  /* 50 samples at 20 ms = 1 second. */
+	  #define LONGPRESS_SAMPLES 50
 
 	  for(;;)
 	  {
@@ -310,21 +376,31 @@ void StartInputTask(void *argument)
 	      osMessageQueuePut(petEventQueueHandle, &ev, 0, 0);
 	    }
 
-	    if (btn_b == 0 && btn_b_prev == 1) {
-	      pet_event_t ev = PET_EVENT_PLAY;
-	      osMessageQueuePut(petEventQueueHandle, &ev, 0, 0);
+	    /* B is press-and-hold: a short press plays, a hold toggles sleep. The
+	     * long press fires while still held so the hold has a definite moment,
+	     * and a flag stops the release also registering as a play. */
+	    if (btn_b == 0) {
+	      btn_b_held++;
+
+	      if (btn_b_held >= LONGPRESS_SAMPLES && !btn_b_longpress_fired) {
+	        pet_event_t ev = PET_EVENT_SLEEP_TOGGLE;
+	        osMessageQueuePut(petEventQueueHandle, &ev, 0, 0);
+	        btn_b_longpress_fired = 1;
+	      }
+	    } else {
+	      if (btn_b_prev == 0 && !btn_b_longpress_fired) {
+	        pet_event_t ev = PET_EVENT_PLAY;
+	        osMessageQueuePut(petEventQueueHandle, &ev, 0, 0);
+	      }
+	      btn_b_held = 0;
+	      btn_b_longpress_fired = 0;
 	    }
 
 	    btn_a_prev = btn_a;
 	    btn_b_prev = btn_b;
 
-	    /* Buttons need 20 ms sampling to debounce cleanly; the accelerometer
-	     * does not, and polling I2C that often wastes bus time and power. Every
-	     * fifth pass gives 100 ms, which matches the cooldown assumption in
-	     * lis3dh_check_shake(). */
 	    if (++accel_divider >= 5) {
 	      accel_divider = 0;
-
 	      if (lis3dh_check_shake()) {
 	        pet_event_t ev = PET_EVENT_SHAKE;
 	        osMessageQueuePut(petEventQueueHandle, &ev, 0, 0);

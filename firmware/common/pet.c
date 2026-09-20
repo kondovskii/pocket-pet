@@ -33,6 +33,8 @@ void pet_init(pet_state_t *pet)
     pet->stage          = PET_STAGE_BABY;
     pet->is_sleeping    = 0;
     pet->is_alive       = 1;
+    pet->last_event     = PET_EVENT_FEED;
+    pet->reaction_ticks = 0;
 }
 
 /*
@@ -51,6 +53,9 @@ void pet_tick(pet_state_t *pet)
 
     pet->tick_count++;
     pet->age_s++;
+    if (pet->reaction_ticks > 0) {
+        pet->reaction_ticks--;
+    }
 
     if (pet->stage == PET_STAGE_BABY && pet->age_s >= ADULT_AGE_S) {
         pet->stage = PET_STAGE_ADULT;
@@ -103,16 +108,22 @@ void pet_apply_event(pet_state_t *pet, pet_event_t event)
     switch (event) {
     case PET_EVENT_FEED:
         pet->hunger = stat_add(pet->hunger, FEED_AMOUNT);
+        pet->last_event     = PET_EVENT_FEED;
+        pet->reaction_ticks = REACTION_TICKS;
         break;
 
     case PET_EVENT_PLAY:
         pet->mood   = stat_add(pet->mood, PLAY_MOOD_GAIN);
         pet->energy = stat_sub(pet->energy, PLAY_ENERGY_COST);
+        pet->last_event     = PET_EVENT_PLAY;
+        pet->reaction_ticks = REACTION_TICKS;
         break;
 
     case PET_EVENT_SHAKE:
         pet->mood   = stat_add(pet->mood, SHAKE_MOOD_GAIN);
         pet->energy = stat_sub(pet->energy, SHAKE_ENERGY_COST);
+        pet->last_event     = PET_EVENT_SHAKE;
+        pet->reaction_ticks = REACTION_TICKS;
         break;
 
     case PET_EVENT_SLEEP_TOGGLE:

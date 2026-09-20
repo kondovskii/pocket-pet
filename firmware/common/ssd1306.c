@@ -385,3 +385,41 @@ void ssd1306_draw_bitmap(uint8_t x, uint8_t y, const uint8_t *bitmap,
         }
     }
 }
+
+/*
+ * Draw a bitmap with integer pixel scaling.
+ *
+ * Each source pixel becomes a scale x scale block. Only whole-number scaling
+ * is supported, which keeps it to shifts and adds and avoids any smoothing —
+ * on a 1-bit display there is nothing to interpolate anyway, and a hard
+ * doubling looks deliberate where a filtered one would look broken.
+ *
+ * scale of 1 is identical to ssd1306_draw_bitmap().
+ */
+void ssd1306_draw_bitmap_scaled(uint8_t x, uint8_t y, const uint8_t *bitmap,
+                                uint8_t w, uint8_t h, uint8_t scale,
+                                ssd1306_colour_t colour)
+{
+    uint8_t bytes_per_row = (uint8_t)((w + 7) / 8);
+
+    if (scale == 0) {
+        return;
+    }
+
+    for (uint8_t row = 0; row < h; row++) {
+        for (uint8_t col = 0; col < w; col++) {
+            uint8_t byte = bitmap[(row * bytes_per_row) + (col / 8)];
+
+            if (byte & (0x80 >> (col % 8))) {
+                /* Fill the block this source pixel expands into. */
+                for (uint8_t dy = 0; dy < scale; dy++) {
+                    for (uint8_t dx = 0; dx < scale; dx++) {
+                        ssd1306_draw_pixel((uint8_t)(x + col * scale + dx),
+                                           (uint8_t)(y + row * scale + dy),
+                                           colour);
+                    }
+                }
+            }
+        }
+    }
+}

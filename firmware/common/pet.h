@@ -24,7 +24,10 @@
 #define DISTRESS_TICKS        120  /* 2 minutes of visible warning */
 
 /* Age at which a baby becomes an adult. */
-#define ADULT_AGE_S           600  /* 10 minutes */
+#define ADULT_AGE_S           60  /* 10 minutes */
+
+/* How long a reaction animation plays. Ticks are one second. */
+#define REACTION_TICKS  2
 
 typedef enum {
     PET_STAGE_BABY = 0,
@@ -40,6 +43,13 @@ typedef enum {
     PET_MOOD_DEAD
 } pet_mood_t;
 
+typedef enum {
+    PET_EVENT_FEED = 0,
+    PET_EVENT_PLAY,        /* from a button */
+    PET_EVENT_SHAKE,       /* from the accelerometer */
+    PET_EVENT_SLEEP_TOGGLE
+} pet_event_t;
+
 typedef struct {
     uint8_t  hunger;
     uint8_t  mood;
@@ -52,14 +62,17 @@ typedef struct {
     pet_stage_t stage;
     uint8_t  is_sleeping;
     uint8_t  is_alive;
+
+    /* Reaction display: set when an event arrives, counts down each tick.
+     * The display task shows a reaction animation while this is non-zero,
+     * which both confirms the button press and gives the less-used
+     * animations something to do. */
+    pet_event_t last_event;
+    uint8_t     reaction_ticks;
+
 } pet_state_t;
 
-typedef enum {
-    PET_EVENT_FEED = 0,
-    PET_EVENT_PLAY,        /* from a button */
-    PET_EVENT_SHAKE,       /* from the accelerometer */
-    PET_EVENT_SLEEP_TOGGLE
-} pet_event_t;
+
 
 void pet_init(pet_state_t *pet);
 void pet_tick(pet_state_t *pet);

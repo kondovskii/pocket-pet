@@ -3,10 +3,8 @@
 Battery-powered handheld virtual pet on a custom 2-layer PCB. STM32L433,
 FreeRTOS, hand-written SSD1306 driver, wake-on-motion.
 
-**Status:** board #2 fully assembled — power tree verified at 3.36 V, MCU and
-peripherals populated. Awaiting an ST-Link to flash it. Display and
-accelerometer drivers validated on a NUCLEO-L432KC; three-task FreeRTOS
-application running.
+**Status:** working. Board assembled and running the full firmware — display,
+accelerometer, buttons, and battery power all verified on the custom hardware.
 
 ## Why this project
 
@@ -24,7 +22,7 @@ so that each decision is defensible.
 | Regulator | MCP1700-3302 | 3.3 V LDO, low quiescent current |
 | Input | USB-C, charge only | 5.1 k CC1/CC2 pull-downs for correct sink advertisement |
 | Display | SSD1306 128x64, SPI | Hand-written driver, no vendor library |
-| Motion | LIS3DH, I2C | On a header so it can be swapped or removed |
+| Motion | LIS3DH, I2C | Hand-written driver; soldered direct, isolatable via R6 |
 | Battery | 500 mAh LiPo | JST-PH |
 
 2-layer FR4, designed in KiCad, fabricated by JLCPCB.
@@ -49,9 +47,10 @@ peripheral's current draw in isolation, or to remove it from the picture while
 debugging.
 
 **I2C pull-ups fitted but not populated.** R7 and R8 are marked DNP because the
-LIS3DH breakout carries its own — confirmed by bench test, with CS and SA0
-floating as J6 wires them. The footprints exist so they can be added if a
-different module is used.
+LIS3DH module carries its own. Measured at 10 k, which is weak for 400 kHz on
+a board with no ground plane, so the bus runs at 100 kHz instead — the workload
+is roughly 60 bytes per second, so there is nothing to gain from the higher
+rate and the slower edges have four times the rise-time margin.
 
 **Peripherals soldered directly.** The original plan was female headers so
 modules could be swapped. They were dropped because SW1, the power switch, is
@@ -108,19 +107,19 @@ samples are the low half of one reading stitched to the high half of the next.
 signed type sign-extends and preserves negative readings, where the same shift
 on an unsigned type would turn -1 into 4095.
 
-**The I2C address was found by scanning, not assumed.** The module strapps SA0
-high on-board, giving 0x19 rather than the 0x18 in most examples. The scan also
-answered an open hardware question: with CS and SA0 left floating — exactly how
-J6 wires them on the custom board — the part still enumerates, which confirms
-the module strapps CS high internally and the connector design is correct.
+**The I2C address depends on the board, not the chip.** On the Nucleo bench
+wiring SA0 and CS float, and the module's own strapping gives 0x19. On the
+custom board J6 ties SA0 to ground and CS to 3V3, giving 0x18. The address
+therefore lives in `pocket_pet_pins.h` behind a board selector rather than in
+the driver, because it is a board fact.
 
 ## RTOS architecture
 
 Three tasks, no shared state.
 
-    inputTask    polls and debounces the two buttons, publishes events
-    petTask      owns the pet state, applies events, ticks it forward
-    displayTask  blocks on a state queue, renders whatever it receives
+    inputTask    polls and debounces the buttons, detects shake, publishes events
+    petTask      owns the pet state, applies events, ticks it forward once a second
+    displayTask  redraws at 8 fps, taking a new state when one is available
 
 Tasks communicate only through queues, and the pet state is passed **by value**
 rather than by pointer — each task works on its own copy, so there is no shared
@@ -134,6 +133,36 @@ button press is a bug, where a dropped frame is not.
 **Input is edge-triggered, not level.** A press registers on the
 released-to-pressed transition, so holding a button feeds the pet once rather
 than continuously.
+
+**The display task runs on a timer, not on the queue.** It was originally
+blocked on `osWaitForever`, which meant it only redrew when the pet state
+changed — once a second, far too slow for animation. It now wakes every 125 ms
+and takes a new state if one is waiting, so rendering rate and simulation rate
+are decoupled.
+
+## Game design
+
+Three stats decay on separate timescales: hunger fastest, then mood, then
+energy. Any stat reaching zero starts a two-minute distress countdown with a
+visible warning; ignoring it kills the pet. The countdown exists so that death
+is a consequence of ignoring something, not a surprise.
+
+**The lowest stat decides the pet's expression**, so it looks as bad as its
+worst problem rather than averaging out and hiding the thing the player needs
+to notice.
+
+**Two buttons, four actions.** Left feeds. Right plays on a short press and
+toggles sleep on a one-second hold. Shaking the board is a third input,
+detected by comparing squared acceleration magnitude against a threshold —
+squared, so the comparison needs no square root and no floating point.
+
+**Sleep is the only way to recover energy**, and playing costs it, so the
+stats interact rather than being three independent bars.
+
+**Actions trigger a two-second reaction animation.** This confirms the press
+registered, and gives the less-frequently-seen animations a reason to exist —
+most moods map to slow-moving stats you rarely watch change.
+
 
 
 ## Known issues (v1.0)
@@ -165,6 +194,19 @@ rather than hidden — these are the v1.1 fix list.
   hardwired to the on-board MCU, and CN2 is reserved for reflashing the
   ST-Link's own processor. A standalone ST-Link V2 is required. Worth knowing
   before planning a bring-up around a Nucleo.
+- Debug sessions corrupt I²C. With SWD active, lis3dh_init() fails intermittently; disconnecting the debugger makes it reliable.  SWDIO and SWCLK run adjacent to the I²C lines with no ground plane between them. Worth knowing that on this board a peripheral failure seen under the debugger may not be a real failure.
+- **512-byte task stacks were too small.** With `snprintf` and newlib
+  reentrancy in play, the display task overflowed its stack and the symptom
+  was an intermittent HardFault several minutes after boot, with nothing
+  obviously stack-related in the trace. 1 KB per task fixed it.
+- **The battery arrived with its JST housing wired backwards.** With no
+  reverse-polarity protection on v1.0 that would have destroyed the charger.
+  Worth measuring cell polarity against the board's silkscreen before every
+  first connection.
+- **Cheap USB-C charger modules often omit the CC pull-downs.** A TP4056
+  module appeared dead on a compliant USB-C supply because it never
+  negotiated; it worked immediately from a legacy USB-A source. The same
+  5.1 k resistors this board fits as R2/R3.
 
 ## Repository layout
 
@@ -179,6 +221,18 @@ Requires STM32CubeIDE. Import the project with "Copy projects into workspace"
 unchecked so the IDE edits the repo in place; keep the workspace outside the
 repository. The .ioc file is the source of truth for pin configuration — if you
 change pins, regenerate from CubeMX rather than editing generated code.
+
+## Sprites
+
+Sprite data is not included in this repository. The bunny animations are from
+[VegaJourney's 32x32 Bunny pack](https://toffeecraft.itch.io/bunny-pixel-animations) (licence permits use but
+not redistribution), converted to 1-bit bitmaps.
+
+To build: copy `firmware/common/pet_sprites.h.template` to `pet_sprites.h`
+and supply your own sprite arrays. Any 1-bit bitmap works — 
+`ssd1306_draw_bitmap()` takes row-major, MSB-first data, which is what
+[image2cpp](https://javl.github.io/image2cpp/) produces with horizontal
+orientation selected.
 
 ## License
 
