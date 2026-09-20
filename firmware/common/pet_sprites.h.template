@@ -1,0 +1,64 @@
+#ifndef PET_SPRITES_H
+#define PET_SPRITES_H
+
+#include <stdint.h>
+
+/*
+ * Sprite data template.
+ *
+ * Artwork is not committed to this repository — the pack used is licensed for
+ * use but not redistribution. Copy this file to pet_sprites.h and fill in your
+ * own frames.
+ *
+ * Format: 32x32, row-major, MSB first, 4 bytes per row, 128 bytes per frame.
+ * This is what image2cpp (javl.github.io/image2cpp) produces with:
+ *   - canvas size 32 x 32
+ *   - canvas background: black
+ *   - invert image colours: on
+ *   - draw mode: horizontal, 1 bit per pixel
+ *
+ * A correct frame is mostly 0x00 — most of a 32x32 box is empty space around
+ * the creature. Mostly 0xff means the polarity is inverted.
+ */
+
+#define PET_SPRITE_W      32
+#define PET_SPRITE_H      32
+#define PET_SPRITE_BYTES  (PET_SPRITE_W * PET_SPRITE_H / 8)
+
+/*
+ * One array per animation. Frame counts are free to differ — the descriptor
+ * below derives them with sizeof, so adding a frame means editing one place.
+ *
+ * Each entry is 128 bytes: { 0x00,0x00,0x00,0x00,  ... }
+ */
+
+static const uint8_t bunny_idle[1][PET_SPRITE_BYTES]    = {{0}};
+static const uint8_t bunny_sitting[1][PET_SPRITE_BYTES] = {{0}};
+static const uint8_t bunny_liedown[1][PET_SPRITE_BYTES] = {{0}};
+static const uint8_t bunny_sleep[1][PET_SPRITE_BYTES]   = {{0}};
+static const uint8_t bunny_hurt[1][PET_SPRITE_BYTES]    = {{0}};
+static const uint8_t bunny_dead[1][PET_SPRITE_BYTES]    = {{0}};
+static const uint8_t bunny_attack[1][PET_SPRITE_BYTES]  = {{0}};
+static const uint8_t bunny_run[1][PET_SPRITE_BYTES]     = {{0}};
+
+/*
+ * Animation descriptor. Frames and count travel together so they cannot drift
+ * apart.
+ */
+typedef struct {
+    const uint8_t (*frames)[PET_SPRITE_BYTES];
+    uint8_t count;
+} pet_anim_t;
+
+#define PET_ANIM(a)  { a, (uint8_t)(sizeof(a) / PET_SPRITE_BYTES) }
+
+static const pet_anim_t anim_idle    = PET_ANIM(bunny_idle);
+static const pet_anim_t anim_sitting = PET_ANIM(bunny_sitting);
+static const pet_anim_t anim_liedown = PET_ANIM(bunny_liedown);
+static const pet_anim_t anim_sleep   = PET_ANIM(bunny_sleep);
+static const pet_anim_t anim_hurt    = PET_ANIM(bunny_hurt);
+static const pet_anim_t anim_dead    = PET_ANIM(bunny_dead);
+static const pet_anim_t anim_attack  = PET_ANIM(bunny_attack);
+static const pet_anim_t anim_run     = PET_ANIM(bunny_run);
+
+#endif /* PET_SPRITES_H */
