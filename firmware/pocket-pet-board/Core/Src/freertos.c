@@ -54,7 +54,7 @@
 
     const osThreadAttr_t petTask_attributes = {
       .name = "petTask",
-      .stack_size = 256 * 4,
+      .stack_size = 512 * 4,
       .priority = (osPriority_t) osPriorityNormal,
     };
     osThreadId_t petTaskHandle;
@@ -64,7 +64,7 @@
 
     const osThreadAttr_t inputTask_attributes = {
       .name = "inputTask",
-      .stack_size = 256 * 4,
+      .stack_size = 512 * 4,
       .priority = (osPriority_t) osPriorityNormal,
     };
     osThreadId_t inputTaskHandle;
@@ -75,7 +75,7 @@
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .stack_size = 128 * 4,
+  .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 
@@ -88,6 +88,22 @@ void StartInputTask(void *argument);
 void StartDefaultTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
+
+/* Hook prototypes */
+void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName);
+
+/* USER CODE BEGIN 4 */
+void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName)
+{
+   /* Run time stack overflow checking is performed if
+   configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2. This hook function is
+   called if a stack overflow is detected. */
+	 (void)xTask;
+	   (void)pcTaskName;
+	   __disable_irq();
+	   for(;;);
+}
+/* USER CODE END 4 */
 
 /**
   * @brief  FreeRTOS initialization
@@ -279,10 +295,12 @@ void StartDefaultTask(void *argument)
     if (mood == PET_MOOD_DEAD) {
       ssd1306_draw_string(4, 56, "RIP", SSD1306_PIXEL_ON);
     } else if (mood == PET_MOOD_DISTRESSED) {
-      snprintf(line, sizeof(line), "HELP! %us",
-               (unsigned)(DISTRESS_TICKS - pet.distress_ticks));
-      ssd1306_draw_string(4, 56, line, SSD1306_PIXEL_ON);
-    } else if (mood == PET_MOOD_SLEEPING) {
+      snprintf(line, sizeof(line), "HELP %u  %lus",
+               (unsigned)(DISTRESS_TICKS - pet.distress_ticks),
+               pet.age_s);
+      ssd1306_draw_string(0, 56, line, SSD1306_PIXEL_ON);
+    }
+    else if (mood == PET_MOOD_SLEEPING) {
       ssd1306_draw_string(4, 56, "ZZZ", SSD1306_PIXEL_ON);
     } else {
       snprintf(line, sizeof(line), "%s %lus",
@@ -304,6 +322,7 @@ void StartDefaultTask(void *argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+
 	/*
 	 * Owns the pet state. Nothing else writes to it.
 	 *
@@ -311,6 +330,8 @@ void StartDefaultTask(void *argument)
 	 * whatever it receives. Neither task touches the other's memory, which is
 	 * what makes this safe without a mutex.
 	 */
+
+
 	void StartPetTask(void *argument)
 	{
 	  pet_state_t pet;

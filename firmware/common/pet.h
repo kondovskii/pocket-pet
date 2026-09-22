@@ -24,7 +24,7 @@
 #define DISTRESS_TICKS        120  /* 2 minutes of visible warning */
 
 /* Age at which a baby becomes an adult. */
-#define ADULT_AGE_S           60  /* 10 minutes */
+#define ADULT_AGE_S           600  /* 10 minutes */
 
 /* How long a reaction animation plays. Ticks are one second. */
 #define REACTION_TICKS  2

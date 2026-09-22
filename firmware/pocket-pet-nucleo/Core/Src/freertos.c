@@ -282,9 +282,11 @@ void StartDefaultTask(void *argument)
     if (mood == PET_MOOD_DEAD) {
       ssd1306_draw_string(4, 56, "RIP", SSD1306_PIXEL_ON);
     } else if (mood == PET_MOOD_DISTRESSED) {
-      snprintf(line, sizeof(line), "HELP! %us",
-               (unsigned)(DISTRESS_TICKS - pet.distress_ticks));
-      ssd1306_draw_string(4, 56, line, SSD1306_PIXEL_ON);
+      snprintf(line, sizeof(line), "HELP %u  %lus",
+               (unsigned)(DISTRESS_TICKS - pet.distress_ticks),
+               pet.age_s);
+      ssd1306_draw_string(0, 56, line, SSD1306_PIXEL_ON);
+
     } else if (mood == PET_MOOD_SLEEPING) {
       ssd1306_draw_string(4, 56, "ZZZ", SSD1306_PIXEL_ON);
     } else {
@@ -308,7 +310,13 @@ void StartDefaultTask(void *argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
-
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
+{
+    (void)xTask;
+    (void)pcTaskName;
+    __disable_irq();
+    for(;;);
+}
 /*
  * Owns the pet state. Nothing else writes to it.
  *

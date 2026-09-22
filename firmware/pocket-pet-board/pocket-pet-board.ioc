@@ -2,9 +2,11 @@
 CAD.formats=
 CAD.pinconfig=
 CAD.provider=
-FREERTOS.IPParameters=Tasks01,configTOTAL_HEAP_SIZE,configUSE_NEWLIB_REENTRANT
-FREERTOS.Tasks01=defaultTask,24,128,StartDefaultTask,Default,NULL,Dynamic,NULL,NULL
-FREERTOS.configTOTAL_HEAP_SIZE=8192
+FREERTOS.FootprintOK=true
+FREERTOS.IPParameters=Tasks01,configTOTAL_HEAP_SIZE,configUSE_NEWLIB_REENTRANT,configCHECK_FOR_STACK_OVERFLOW,FootprintOK
+FREERTOS.Tasks01=defaultTask,24,512,StartDefaultTask,Default,NULL,Dynamic,NULL,NULL
+FREERTOS.configCHECK_FOR_STACK_OVERFLOW=2
+FREERTOS.configTOTAL_HEAP_SIZE=16384
 FREERTOS.configUSE_NEWLIB_REENTRANT=1
 File.Version=6
 GPIO.groupedBy=Group By Peripherals
