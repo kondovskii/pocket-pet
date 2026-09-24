@@ -48,9 +48,9 @@ debugging.
 
 **I2C pull-ups fitted but not populated.** R7 and R8 are marked DNP because the
 LIS3DH module carries its own. Measured at 10 k, which is weak for 400 kHz on
-a board with no ground plane, so the bus runs at 100 kHz instead — the workload
-is roughly 60 bytes per second, so there is nothing to gain from the higher
-rate and the slower edges have four times the rise-time margin.
+a board with no ground plane, so the bus runs at 100 kHz — the workload is
+roughly 60 bytes per second, so there is nothing to gain from the higher rate
+and the slower edges have four times the rise-time margin.
 
 **Peripherals soldered directly.** The original plan was female headers so
 modules could be swapped. They were dropped because SW1, the power switch, is
@@ -195,10 +195,16 @@ rather than hidden — these are the v1.1 fix list.
   ST-Link's own processor. A standalone ST-Link V2 is required. Worth knowing
   before planning a bring-up around a Nucleo.
 - Debug sessions corrupt I²C. With SWD active, lis3dh_init() fails intermittently; disconnecting the debugger makes it reliable.  SWDIO and SWCLK run adjacent to the I²C lines with no ground plane between them. Worth knowing that on this board a peripheral failure seen under the debugger may not be a real failure.
-- **512-byte task stacks were too small.** With `snprintf` and newlib
-  reentrancy in play, the display task overflowed its stack and the symptom
-  was an intermittent HardFault several minutes after boot, with nothing
-  obviously stack-related in the trace. 1 KB per task fixed it.
+- **Task stacks were too small, and the first fix silently undid itself.**
+  The display task ran on CubeMX's default 512 bytes, which `snprintf`, newlib
+  reentrancy and the scaled bitmap blit comfortably exceed. The symptom was a
+  HardFault minutes after boot, triggered by bursts of input, with nothing
+  obviously stack-related in the trace. It was fixed once by hand, but the
+  default task's stack size lives in generated code outside the USER CODE
+  markers, so the next CubeMX regeneration quietly reverted it. Now set in the
+  .ioc at 2 KB per task, with configCHECK_FOR_STACK_OVERFLOW enabled so any
+  future overflow halts in a named hook rather than surfacing as an unrelated
+  fault.
 - **The battery arrived with its JST housing wired backwards.** With no
   reverse-polarity protection on v1.0 that would have destroyed the charger.
   Worth measuring cell polarity against the board's silkscreen before every
@@ -207,6 +213,14 @@ rather than hidden — these are the v1.1 fix list.
   module appeared dead on a compliant USB-C supply because it never
   negotiated; it worked immediately from a legacy USB-A source. The same
   5.1 k resistors this board fits as R2/R3.
+  - **Changing I2C speed in CubeMX did not update the generated timing register.**
+  The .ioc read Standard Mode while `MX_I2C1_Init()` still carried the Fast
+  Mode timing value, so the bus ran at 400 kHz regardless. With 10 k pull-ups
+  and no ground plane that was marginal, and produced intermittent LIS3DH
+  failures that looked like a driver or wiring fault. Toggling the mode and
+  disabling custom timing both failed to force a recalculation; the value had
+  to be entered by hand. Verify `hi2c1.Init.Timing` in i2c.c after any speed
+  change rather than trusting the .ioc.
 
 ## Repository layout
 
@@ -221,6 +235,9 @@ Requires STM32CubeIDE. Import the project with "Copy projects into workspace"
 unchecked so the IDE edits the repo in place; keep the workspace outside the
 repository. The .ioc file is the source of truth for pin configuration — if you
 change pins, regenerate from CubeMX rather than editing generated code.
+Any value in generated code outside the USER CODE markers — task stack sizes,
+heap size, peripheral settings — must be changed in the .ioc, not the source.
+Hand edits there are overwritten on the next regeneration without warning.
 
 ## Sprites
 
